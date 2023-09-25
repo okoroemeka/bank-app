@@ -71,7 +71,7 @@ jobs:
       - name: install golang migration tool
         run: |
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-arm64.tar.gz | tar xvz
-          sudo mv migrate /usr/bin/
+          sudo mv migrate /usr/bin/migrate
           which migrate
 
       - name: Run db migration
