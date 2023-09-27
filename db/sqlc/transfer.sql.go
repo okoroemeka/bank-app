@@ -59,7 +59,7 @@ func (q *Queries) GetAllTransfers(ctx context.Context, arg GetAllTransfersParams
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Transfer
+	items := []Transfer{}
 	for rows.Next() {
 		var i Transfer
 		if err := rows.Scan(
