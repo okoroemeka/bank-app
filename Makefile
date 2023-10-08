@@ -16,8 +16,14 @@ rmdb:
 dbmigrationup:
 	migrate -path db/migration -database "postgresql://root:mysecret@localhost:5433/simple_bank?sslmode=disable" -verbose up
 
+dbmigrationup1:
+	migrate -path db/migration -database "postgresql://root:mysecret@localhost:5433/simple_bank?sslmode=disable" -verbose up
+
 dbmigrationdown:
 	migrate -path db/migration -database "postgresql://root:mysecret@localhost:5433/simple_bank?sslmode=disable" -verbose down
+
+dbmigrationdown1:
+	migrate -path db/migration -database "postgresql://root:mysecret@localhost:5433/simple_bank?sslmode=disable" -verbose down 1
 sqlc:
 	sqlc generate
 server:
@@ -25,5 +31,10 @@ server:
 test:
 	go test -v -cover ./...
 
+mock:
+	mockgen -package mockdbb -destination db/mock/store.go github.com/okoroemeka/simple_bank/db/sqlc Store
 
-.PHONY: postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test
+
+
+
+.PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock
