@@ -3,6 +3,7 @@ package token
 import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"time"
 )
 
@@ -26,6 +27,7 @@ func (maker *JWTMaker) CreateToken(username string, duration time.Duration) (str
 		return "", err
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodES256, payload)
+	log.Println("===>", []byte(maker.secretKey))
 	return jwtToken.SignedString([]byte(maker.secretKey))
 }
 

@@ -1,39 +1,60 @@
 package api
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
+	"github.com/okoroemeka/simple_bank/token"
+	"github.com/okoroemeka/simple_bank/util"
 )
 
 // Server serves http request for our banking app
 type Server struct {
-	store  db.Store
-	router *gin.Engine
+	config     util.Config
+	store      db.Store
+	tokenMaker token.Maker
+	router     *gin.Engine
 }
 
 // NewServer creates a new http server and setup routing
-func NewServer(store db.Store) *Server {
-	server := &Server{
-		store: store,
+func NewServer(config util.Config, store db.Store) (*Server, error) {
+
+	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot create token maker: %w", err)
 	}
-	router := gin.Default()
+
+	server := &Server{
+		config:     config,
+		store:      store,
+		tokenMaker: tokenMaker,
+	}
+
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("currency", validCurrency)
 	}
 
-	router.POST("/user", server.CreateUser)
+	server.setUpRouter()
+	return server, nil
+}
 
-	router.POST("/accounts", server.createAccount)
-	router.POST("/transfers", server.createTransfer)
-	router.GET("/accounts/:id", server.getAccount)
-	router.GET("/accounts", server.listAccounts)
-	router.PUT("/accounts/:id", server.updateAccount)
-	router.DELETE("/accounts/:id", server.deleteAccount)
+func (server *Server) setUpRouter() {
+	router := gin.Default()
+	router.POST("/user", server.CreateUser)
+	router.POST("/user/login", server.LoginUser)
+
+	authRoutes := router.Group("/").Use(authMiddleware(server.tokenMaker))
+	authRoutes.POST("/accounts", server.createAccount)
+	authRoutes.POST("/transfers", server.createTransfer)
+	authRoutes.GET("/accounts/:id", server.getAccount)
+	authRoutes.GET("/accounts", server.listAccounts)
+	authRoutes.PUT("/accounts/:id", server.updateAccount)
+	authRoutes.DELETE("/accounts/:id", server.deleteAccount)
 
 	server.router = router
-	return server
 }
 
 func (server *Server) Start(address string) error {

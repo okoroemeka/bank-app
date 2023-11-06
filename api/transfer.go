@@ -2,9 +2,11 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
+	"github.com/okoroemeka/simple_bank/token"
 	"net/http"
 )
 
@@ -17,13 +19,22 @@ type createTransferRequest struct {
 
 func (server *Server) createTransfer(ctx *gin.Context) {
 	var req createTransferRequest
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSONP(http.StatusBadRequest, errorResponse(err))
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 
-	if !server.validateCurrency(ctx, req.FromAccountID, req.Currency) || !server.validateCurrency(ctx, req.ToAccountID, req.Currency) {
+	fromAccount, isFromAccountCurrencyValid := server.validateCurrency(ctx, req.FromAccountID, req.Currency)
+
+	if fromAccount.Owner != authPayload.Username {
+		ctx.JSON(http.StatusUnauthorized, errorResponse(errors.New("you are not authorised to perform this transaction")))
+		return
+	}
+	_, istoAccountCurrencyValid := server.validateCurrency(ctx, req.ToAccountID, req.Currency)
+
+	if !isFromAccountCurrencyValid || !istoAccountCurrencyValid {
 		return
 	}
 
@@ -43,21 +54,21 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
-func (server *Server) validateCurrency(ctx *gin.Context, accountID int64, currency string) bool {
+func (server *Server) validateCurrency(ctx *gin.Context, accountID int64, currency string) (db.Account, bool) {
 	account, err := server.store.GetAccount(ctx, accountID)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
-			return false
+			return account, false
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
-		return false
+		return account, false
 	}
 	if account.Currency != currency {
 		err = fmt.Errorf("account [%d] currency mismatch: %s vs %s", account.ID, account.Currency, currency)
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
-		return false
+		return account, false
 	}
-	return true
+	return account, true
 }
