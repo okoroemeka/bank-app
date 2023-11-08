@@ -1,5 +1,5 @@
 postgres:
-	docker run --name postgres15 -p 5433:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=mysecret -d postgres
+	docker run --name postgres15 --network bank-network -p 5433:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=mysecret -d postgres
 
 createdb:
 	docker exec -it postgres15 createdb --username=root --owner=root simple_bank
@@ -34,7 +34,14 @@ test:
 mock:
 	mockgen -package mockdbb -destination db/mock/store.go github.com/okoroemeka/simple_bank/db/sqlc Store
 
+dkbuild:
+	 docker build -t simplebank:latest .
 
-
+dkserver:
+	docker run --name simplebank --network bank-network -p 8080:8080 -e GIN_MODE=release simplebank:latest
+up:
+	docker compose up
+down:
+	docker compose down
 
 .PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock

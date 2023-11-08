@@ -134,7 +134,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :one
-UPDATE "users" SET "hashed_password"=$1, "password_changed_at"=(now()) WHERE username=$2 RETURNING username, hashed_password, full_name, email, is_email_verified, password_changed_at, created_at
+    UPDATE "users" SET "hashed_password"=$1, "password_changed_at"=(now()) WHERE username=$2 RETURNING username, hashed_password, full_name, email, is_email_verified, password_changed_at, created_at
 `
 
 type UpdateUserPasswordParams struct {

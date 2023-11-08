@@ -16,13 +16,13 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15-alpine
         env:
           POSTGRES_USER: root
           POSTGRES_PASSWORD: mysecret
           POSTGRES_DB: simple_bank
         ports:
-          - 5432:5432
+          - 5433:5432
           # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
@@ -41,8 +41,8 @@ jobs:
 
       - name: install golang migration tool
         run: |
-          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-arm64.tar.gz | tar xvz
-          sudo mv migrate /usr/bin/migrate
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.14.1/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate.linux-amd64 /usr/bin/migrate
           which migrate
 
       - name: Run db migration

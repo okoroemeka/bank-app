@@ -51,19 +51,19 @@ func TestGetUser(t *testing.T) {
 	require.WithinDuration(t, randomUser.CreatedAt, user.CreatedAt, time.Second)
 }
 
-//func TestUpdateUser(t *testing.T) {
-//	account1 := createRandomAccount(t)
-//	arg := UpdateAccountParams{
-//		ID:      account1.ID,
-//		Balance: util.RandomMoney(),
-//	}
-//	account2, err := testQueries.UpdateAccount(context.Background(), arg)
-//	require.NoError(t, err)
-//	require.NotEmpty(t, account2)
-//	require.NotEqual(t, account2.Balance, account1.Balance)
-//	require.Equal(t, account1.ID, account2.ID)
-//	require.Equal(t, account2.Owner, account1.Owner)
-//}
+func TestUpdateUser(t *testing.T) {
+	account1 := createRandomAccount(t)
+	arg := UpdateAccountParams{
+		ID:      account1.ID,
+		Balance: util.RandomMoney(),
+	}
+	account2, err := testQueries.UpdateAccount(context.Background(), arg)
+	require.NoError(t, err)
+	require.NotEmpty(t, account2)
+	require.NotEqual(t, account2.Balance, account1.Balance)
+	require.Equal(t, account1.ID, account2.ID)
+	require.Equal(t, account2.Owner, account1.Owner)
+}
 
 //func TestDeleteAccount(t *testing.T) {
 //	account1 := createRandomAccount(t)
