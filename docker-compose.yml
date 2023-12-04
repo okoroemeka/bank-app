@@ -6,6 +6,10 @@ services:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=mysecret
       - POSTGRES_DB=simple_bank
+    ports:
+        - "5433:5432"
+    networks:
+        - simple_bank
 
   api:
     build:
@@ -14,8 +18,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_SOURCE=postgresql://root:mysecret@postgres:5432/simple_bank?sslmode=disable
+      - DB_SOURCE=postgresql://root:mysecret@postgres:5433/simple_bank?sslmode=disable
     depends_on:
       - postgres
     entrypoint: ["/app/wait-for.sh", "postgres:5432", "--", "/app/start.sh"]
     command: ["/app/main"]
+
+networks:
+  simple_bank:
+    driver: bridge
