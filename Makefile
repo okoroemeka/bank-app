@@ -1,6 +1,6 @@
 DB_URL = postgres://root:mysecret@localhost:5433/simple_bank?sslmode=disable
 postgres:
-	docker run --name postgres15 --network bank-network -p 5433:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=mysecret -d postgres
+	docker network create bank-network && docker run --name postgres15 --network bank-network -p 5433:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=mysecret -d postgres
 
 createdb:
 	docker exec -it postgres15 createdb --username=root --owner=root simple_bank
@@ -12,7 +12,7 @@ stpdb:
 	docker stop postgres15
 
 rmdb:
-	docker rm postgres15
+	docker rm postgres15 && docker network rm bank-network
 
 dbmigrationup:
 	migrate -path db/migration -database "${DB_URL}" -verbose up
@@ -45,4 +45,17 @@ up:
 down:
 	docker compose down
 
-.PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock
+proto:
+	rm -f pb/*.go
+	rm -f doc/swagger/*json
+	protoc --proto_path=proto --go_out=pb --go_opt=paths=source_relative \
+    --go-grpc_out=pb --go-grpc_opt=paths=source_relative \
+    --grpc-gateway_out=pb --grpc-gateway_opt=paths=source_relative \
+    --openapiv2_out=doc/swagger --openapiv2_opt=allow_merge=true,merge_file_name=simple_bank \
+    proto/*.proto && \
+    statik -src=./doc/swagger -dest=./doc -f
+
+evans:
+	evans --host localhost --port 9080 -r repl
+
+.PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock dkbuild dkserver up down proto
