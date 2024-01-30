@@ -8,10 +8,10 @@ import (
 
 var (
 	isValidUsername = regexp.MustCompile(`^[a-z0-9_]+$`).MatchString
-	isValidFullname = regexp.MustCompile(`^[a-zA-Z\\s]+$`).MatchString
+	isValidFullname = regexp.MustCompile(`^[a-zA-Z\s]+$`).MatchString
 )
 
-func ValidateString(value string, minLength int, maxLength int) error {
+func ValidateString(value string, minLength, maxLength int) error {
 	valueLength := len(value)
 	if valueLength < minLength || valueLength > maxLength {
 		return fmt.Errorf("must contain from %d-%d characters", minLength, maxLength)
@@ -49,6 +49,13 @@ func ValidateEmail(email string) error {
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
 		return fmt.Errorf("must be a valid email address")
+	}
+	return nil
+}
+
+func ValidateVerifyEmailId(arg int64) error {
+	if arg <= 0 {
+		return fmt.Errorf("must be a positive integer")
 	}
 	return nil
 }

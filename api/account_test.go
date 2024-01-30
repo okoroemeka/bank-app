@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	custom_error "github.com/okoroemeka/simple_bank/custom-error"
 	mockdbb "github.com/okoroemeka/simple_bank/db/mock"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
 	"github.com/okoroemeka/simple_bank/token"
@@ -31,7 +32,7 @@ func TestGetAccountAPI(t *testing.T) {
 		name:      "NotFound",
 		accountID: account.ID,
 		buildStubs: func(store *mockdbb.MockStore) {
-			store.EXPECT().GetAccount(gomock.Any(), gomock.Eq(account.ID)).Times(1).Return(db.Account{}, sql.ErrNoRows)
+			store.EXPECT().GetAccount(gomock.Any(), gomock.Eq(account.ID)).Times(1).Return(db.Account{}, custom_error.ErrorNoRecordFound)
 		},
 		setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
 			addAuthorization(t, request, tokenMaker, authorizationTypeBearer, "user", time.Minute)

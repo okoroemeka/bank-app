@@ -6,12 +6,19 @@ sql:
       gen:
           go:
               package: "db"
+              sql_package: "pgx/v5"
               out: "./db/sqlc"
               emit_json_tags: true
               emit_empty_slices: true
               emit_interface: true
+              overrides:
+                - db_type: "timestampz"
+                  go_type: "time.Time"
+                - db_type: "uuid"
+                  go_type: "github.com/google/uuid.UUID"
+
 
       database:
-          uri: "postgresql://root:mysecret@localhost:5433/simple_bank?sslmode=disable"
+          uri: "postgresql://root:mysecret@localhost:5432/simple_bank?sslmode=disable"
 
 

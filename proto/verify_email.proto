@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/okoroemeka/simple_bank/pb";
+
+message VerifyEmail{
+ string username  = 1;
+ string email  = 2;
+ google.protobuf.Timestamp created_at  = 3;
+ google.protobuf.Timestamp expired_at  = 4;
+ bool is_used  = 5;
+ string secret_code  = 6;
+ int64 id  = 7;
+}

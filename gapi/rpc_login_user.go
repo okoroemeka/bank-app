@@ -2,8 +2,9 @@ package gapi
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"github.com/jackc/pgx/v5/pgtype"
+	customerror "github.com/okoroemeka/simple_bank/custom-error"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
 	"github.com/okoroemeka/simple_bank/pb"
 	"github.com/okoroemeka/simple_bank/util"
@@ -14,18 +15,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (server Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.LoginUserResponse, error) {
+func (server *Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.LoginUserResponse, error) {
 
 	violations := validateLoginUserRequest(req)
 
 	if violations != nil {
-		return nil, InvalidArgument(violations)
+		return nil, customerror.InvalidArgument(violations)
 	}
 
 	user, err := server.store.GetUser(ctx, req.GetUsername())
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, customerror.ErrorNoRecordFound) {
 			return nil, status.Errorf(codes.NotFound, "user not found: %s", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get user: %s", err)
@@ -35,13 +36,13 @@ func (server Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 		return nil, status.Errorf(codes.Unauthenticated, "invalid password: %s", err)
 	}
 
-	token, payload, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
+	token, payload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.AccessTokenDuration)
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create access token: %s", err)
 	}
 
-	refreshToken, RefreshTokenPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.RefreshTokenDuration)
+	refreshToken, RefreshTokenPayload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.RefreshTokenDuration)
 
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create refresh token: %s", err)
@@ -55,7 +56,7 @@ func (server Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 		UserAgent:    mtdt.UserAgent,
 		ClientIp:     mtdt.ClientIp,
 		IsBlocked:    false,
-		ExpiresAt:    RefreshTokenPayload.ExpiresAt,
+		ExpiresAt:    pgtype.Timestamptz{Time: RefreshTokenPayload.ExpiresAt, Valid: true},
 	}
 
 	session, err := server.store.CreateSession(ctx, sessionArg)
@@ -76,11 +77,11 @@ func (server Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 
 func validateLoginUserRequest(req *pb.LoginUserRequest) (violations []*errdetails.BadRequest_FieldViolation) {
 	if err := val.ValidateUsername(req.GetUsername()); err != nil {
-		violations = append(violations, FieldViolation("username", err))
+		violations = append(violations, customerror.FieldViolation("username", err))
 	}
 
 	if err := val.ValidatePassword(req.GetPassword()); err != nil {
-		violations = append(violations, FieldViolation("password", err))
+		violations = append(violations, customerror.FieldViolation("password", err))
 	}
 
 	return

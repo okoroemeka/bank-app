@@ -3,7 +3,7 @@
 -- Generated at: 2023-02-25T10:30:37.080Z
 
 CREATE TABLE "users" (
-                         "username" varchar PRIMARY KEY,
+                         "username" varchar UNIQUE PRIMARY KEY,
                          "hashed_password" varchar NOT NULL,
                          "full_name" varchar NOT NULL,
                          "email" varchar UNIQUE NOT NULL,
@@ -72,7 +72,7 @@ COMMENT ON COLUMN "entries"."amount" IS 'can be negative or positive';
 --
 COMMENT ON COLUMN "transfers"."amount" IS 'must be positive';
 --
--- ALTER TABLE "verify_emails" ADD FOREIGN KEY ("username") REFERENCES "users" ("username");
+ALTER TABLE "verify_emails" ADD FOREIGN KEY ("username") REFERENCES "users" ("username");
 --
 ALTER TABLE "accounts" ADD FOREIGN KEY ("owner") REFERENCES "users" ("username");
 

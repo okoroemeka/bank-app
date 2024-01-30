@@ -12,17 +12,18 @@ func TestJWTMaker(t *testing.T) {
 	require.NoError(t, err)
 
 	username := util.RandomOwner()
+	role := util.DepositorRole
 	duration := time.Minute
 	//issuedAt := time.Now()
 	//expiredAt := issuedAt.Add(duration)
 
-	token, err := maker.CreateToken(username, duration)
+	token, payload, err := maker.CreateToken(username, role, duration)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
+	require.NotEmpty(t, payload)
 	//
 	//payload, err := maker.VerifyToken(token)
 	//require.NoError(t, err)
-	//require.NotEmpty(t, payload)
 	//
 	//require.NotZero(t, payload.ID)
 	//require.Equal(t, username, payload.Username)

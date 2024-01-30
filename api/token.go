@@ -1,9 +1,10 @@
 package api
 
 import (
-	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	custom_error "github.com/okoroemeka/simple_bank/custom-error"
 	"net/http"
 	"time"
 )
@@ -34,7 +35,7 @@ func (server *Server) RenewAccessToken(ctx *gin.Context) {
 	session, err := server.store.GetSession(ctx, refreshTokenPayload.ID)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, custom_error.ErrorNoRecordFound) {
 			ctx.JSON(http.StatusUnauthorized, errorResponse(err))
 			return
 		}
@@ -60,13 +61,13 @@ func (server *Server) RenewAccessToken(ctx *gin.Context) {
 		return
 	}
 
-	if time.Now().After(session.ExpiresAt) {
+	if time.Now().After(session.ExpiresAt.Time) {
 		err := fmt.Errorf("refresh token has expired")
 		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
 		return
 	}
 
-	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(session.Username, server.config.AccessTokenDuration)
+	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(session.Username, session.Role, server.config.AccessTokenDuration)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))

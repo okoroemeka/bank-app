@@ -1,10 +1,10 @@
 package api
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	customerror "github.com/okoroemeka/simple_bank/custom-error"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
 	"github.com/okoroemeka/simple_bank/token"
 	"net/http"
@@ -58,7 +58,7 @@ func (server *Server) validateCurrency(ctx *gin.Context, accountID int64, curren
 	account, err := server.store.GetAccount(ctx, accountID)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, customerror.ErrorNoRecordFound) {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
 			return account, false
 		}

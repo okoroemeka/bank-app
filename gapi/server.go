@@ -6,18 +6,20 @@ import (
 	"github.com/okoroemeka/simple_bank/pb"
 	"github.com/okoroemeka/simple_bank/token"
 	"github.com/okoroemeka/simple_bank/util"
+	"github.com/okoroemeka/simple_bank/worker"
 )
 
 // Server serves http request for our banking app
 type Server struct {
 	pb.UnimplementedSimpleBankServer
-	config     util.Config
-	store      db.Store
-	tokenMaker token.Maker
+	config          util.Config
+	store           db.Store
+	tokenMaker      token.Maker
+	taskDistributor worker.TaskDistributor
 }
 
 // NewServer creates a new gRpc server
-func NewServer(config util.Config, store db.Store) (*Server, error) {
+func NewServer(config util.Config, store db.Store, taskDistributor worker.TaskDistributor) (*Server, error) {
 
 	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
 
@@ -26,9 +28,10 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 	}
 
 	server := &Server{
-		config:     config,
-		store:      store,
-		tokenMaker: tokenMaker,
+		config:          config,
+		store:           store,
+		tokenMaker:      tokenMaker,
+		taskDistributor: taskDistributor,
 	}
 
 	return server, nil
