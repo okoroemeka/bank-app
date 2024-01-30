@@ -2,23 +2,24 @@ package gapi
 
 import (
 	"context"
-	"github.com/lib/pq"
+	"github.com/hibiken/asynq"
+	customerror "github.com/okoroemeka/simple_bank/custom-error"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
 	"github.com/okoroemeka/simple_bank/pb"
 	"github.com/okoroemeka/simple_bank/util"
 	"github.com/okoroemeka/simple_bank/val"
+	"github.com/okoroemeka/simple_bank/worker"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log"
+	"time"
 )
 
 func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	violations := validateCreateUserRequest(req)
-	log.Println("violations==>>", violations)
 
 	if violations != nil {
-		return nil, InvalidArgument(violations)
+		return nil, customerror.InvalidArgument(violations)
 	}
 
 	hashedPass, err := util.HashPassword(req.GetPassword())
@@ -27,27 +28,37 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 		return nil, status.Errorf(codes.Internal, "cannot hash password: %s", err)
 	}
 
-	arg := db.CreateUserParams{
-		Username:       req.GetUsername(),
-		HashedPassword: hashedPass,
-		FullName:       req.GetFullName(),
-		Email:          req.GetEmail(),
+	arg := db.CreateUserTxParams{
+		CreateUserParams: db.CreateUserParams{
+			Username:       req.GetUsername(),
+			HashedPassword: hashedPass,
+			FullName:       req.GetFullName(),
+			Email:          req.GetEmail(),
+		},
+		AfterCreate: func(user db.User) error {
+			opts := []asynq.Option{
+				asynq.MaxRetry(10),
+				asynq.ProcessIn(10 * time.Second),
+				asynq.Queue(worker.QueCritical),
+			}
+
+			return server.taskDistributor.DistributeTaskSendVerifyEmail(ctx, &worker.PayloadSendVerifyEmail{
+				Username: user.Username,
+			}, opts...)
+		},
 	}
 
-	user, err := server.store.CreateUser(ctx, arg)
+	txResult, err := server.store.CreateUserTx(ctx, arg)
 
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok {
-			switch pqErr.Code.Name() {
-			case "unique_violation":
-				return nil, status.Errorf(codes.AlreadyExists, "username already exists: %s", err)
-			}
+		if customerror.ErrorCode(err) == customerror.UniqueViolation {
+			return nil, status.Errorf(codes.AlreadyExists, "username already exists: %s", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to create user: %s", err)
 	}
 
 	rsp := &pb.CreateUserResponse{
-		User: convertUser(user),
+		User: convertUser(txResult.User),
 	}
 
 	return rsp, nil
@@ -55,19 +66,19 @@ func (server *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest)
 
 func validateCreateUserRequest(req *pb.CreateUserRequest) (violations []*errdetails.BadRequest_FieldViolation) {
 	if err := val.ValidateUsername(req.GetUsername()); err != nil {
-		violations = append(violations, FieldViolation("username", err))
+		violations = append(violations, customerror.FieldViolation("username", err))
 	}
 
 	if err := val.ValidateFullName(req.GetFullName()); err != nil {
-		violations = append(violations, FieldViolation("full_name", err))
+		violations = append(violations, customerror.FieldViolation("full_name", err))
 	}
 
 	if err := val.ValidateEmail(req.GetEmail()); err != nil {
-		violations = append(violations, FieldViolation("email", err))
+		violations = append(violations, customerror.FieldViolation("email", err))
 	}
 
 	if err := val.ValidatePassword(req.GetPassword()); err != nil {
-		violations = append(violations, FieldViolation("password", err))
+		violations = append(violations, customerror.FieldViolation("password", err))
 	}
 
 	return

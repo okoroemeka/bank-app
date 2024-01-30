@@ -7,22 +7,17 @@ on:
 ## TODO: Check the branch protection (stopped here)
 
 jobs:
-
   build:
     name: Build image
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
       - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4 # More information on this action can be found below in the 'AWS Credentials' section
         with:
-          aws-access-key-id: ${{AWS_SECRET}}
-          aws-secret-access-key: ${{AWS_ACCESS_KEY}}
+          role-to-assume: ${{secrets.AWS_ECR_ROLE}}
           aws-region: eu-central-1
 
       - name: Login to Amazon ECR

@@ -11,8 +11,22 @@ func convertUser(user db.User) *pb.User {
 		Username:          user.Username,
 		FullName:          user.FullName,
 		Email:             user.Email,
-		PasswordChangedAt: timestamppb.New(user.PasswordChangedAt),
-		CreatedAt:         timestamppb.New(user.CreatedAt),
+		IsEmailVerified:   user.IsEmailVerified,
+		PasswordChangedAt: timestamppb.New(user.PasswordChangedAt.Time),
+		CreatedAt:         timestamppb.New(user.CreatedAt.Time),
+	}
+
+}
+
+func convertVerifyEmail(verifyEmail db.VerifyEmail) *pb.VerifyEmail {
+	return &pb.VerifyEmail{
+		Id:         verifyEmail.ID,
+		Username:   verifyEmail.Username,
+		Email:      verifyEmail.Email,
+		SecretCode: verifyEmail.SecretCode,
+		IsUsed:     verifyEmail.IsUsed,
+		ExpiredAt:  timestamppb.New(verifyEmail.ExpiredAt.Time),
+		CreatedAt:  timestamppb.New(verifyEmail.CreatedAt.Time),
 	}
 
 }

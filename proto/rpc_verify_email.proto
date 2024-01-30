@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pb;
+
+import "user.proto";
+import "verify_email.proto";
+
+option go_package =  "github.com/okoroemeka/simple_bank/pb";
+
+message VerifyEmailRequest {
+    int64 id = 1;
+    string code = 2;
+}
+
+message VerifyEmailResponse {
+  User user = 1;
+  VerifyEmail verifyEmail = 2;
+}

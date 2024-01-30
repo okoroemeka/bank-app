@@ -8,10 +8,16 @@
     SELECT * FROM "users" ORDER BY username LIMIT $1 OFFSET $2;
 
 -- name: UpdateUser :one
-    UPDATE "users" SET "full_name"=$1, "email"=$2 WHERE username=$3 RETURNING *;
-
--- name: UpdateUserPassword :one
-    UPDATE "users" SET "hashed_password"=$1, "password_changed_at"=(now()) WHERE username=$2 RETURNING *;
+    UPDATE users
+    SET
+        hashed_password = coalesce(sqlc.narg(hashed_password), hashed_password),
+        password_changed_at = coalesce(sqlc.narg(password_changed_at), password_changed_at),
+        full_name = coalesce(sqlc.narg(full_name), full_name),
+        email = coalesce(sqlc.narg(email), email),
+        is_email_verified = coalesce(sqlc.narg(is_email_verified), is_email_verified)
+    WHERE
+        username = sqlc.arg(username)
+    RETURNING *;
 
 -- name: DeleteUser :exec
     DELETE FROM "users" WHERE username=$1;

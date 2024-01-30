@@ -1,4 +1,4 @@
-DB_URL = postgres://root:mysecret@postgres:5432/simple_bank?sslmode=disable
+DB_URL = postgres://root:mysecret@localhost:5432/simple_bank?sslmode=disable
 
 postgres:
 	docker network rm bank-network  &&	docker network create bank-network && docker run --name postgres15 --network bank-network -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=mysecret -d postgres:15-alpine
@@ -15,23 +15,27 @@ stpdb:
 rmdb:
 	docker rm postgres15 && docker network rm bank-network
 
-dbmigrationup:
+db_migration_up:
 	migrate -path db/migration -database "${DB_URL}" -verbose up
 
-dbmigrationup1:
-	migrate -path db/migration -database "${DB_URL}" -verbose up
+db_migration_up1:
+	migrate -path db/migration -database "${DB_URL}" -verbose up 1
 
-dbmigrationdown:
+db_migration_down:
 	migrate -path db/migration -database "${DB_URL}" -verbose down
 
-dbmigrationdown1:
+db_migration_down1:
 	migrate -path db/migration -database "${DB_URL}" -verbose down 1
+
+new_migration:
+	migrate create -ext sql -dir db/migration -seq $(name)
+
 sqlc:
 	sqlc generate
 server:
 	go run main.go
 test:
-	go test -v -cover ./...
+	go test -v -cover -short ./...
 
 mock:
 	mockgen -package mockdbb -destination db/mock/store.go github.com/okoroemeka/simple_bank/db/sqlc Store
@@ -59,4 +63,7 @@ proto:
 evans:
 	evans --host localhost --port 9080 -r repl
 
-.PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock dkbuild dkserver up down proto
+redis:
+	docker run --name redis -p 6379:6379 -d redis:7-alpine
+
+.PHONY: dbmigrationup1 dbmigrationdown1 postgres createdb dropdb stpdb rmdb dbmigrationup dbmigrationdown sqlc test mock dkbuild dkserver up down proto evans redis new_migration

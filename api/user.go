@@ -1,10 +1,11 @@
 package api
 
 import (
-	"database/sql"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
+	customerror "github.com/okoroemeka/simple_bank/custom-error"
 	db "github.com/okoroemeka/simple_bank/db/sqlc"
 	"github.com/okoroemeka/simple_bank/util"
 	"net/http"
@@ -33,8 +34,8 @@ func getUserObj(user db.User) userResponse {
 		FullName:          user.FullName,
 		Email:             user.Email,
 		IsEmailVerified:   user.IsEmailVerified,
-		PasswordChangedAt: user.PasswordChangedAt,
-		CreatedAt:         user.CreatedAt,
+		PasswordChangedAt: user.PasswordChangedAt.Time,
+		CreatedAt:         user.CreatedAt.Time,
 	}
 }
 
@@ -62,12 +63,9 @@ func (server *Server) CreateUser(ctx *gin.Context) {
 	user, err := server.store.CreateUser(ctx, arg)
 
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok {
-			switch pqErr.Code.Name() {
-			case "unique_violation":
-				ctx.JSON(http.StatusForbidden, errorResponse(err))
-				return
-			}
+		if customerror.ErrorCode(err) == customerror.UniqueViolation {
+			ctx.JSON(http.StatusForbidden, errorResponse(err))
+			return
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
@@ -100,7 +98,7 @@ func (server *Server) LoginUser(ctx *gin.Context) {
 	user, err := server.store.GetUser(ctx, req.Username)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, customerror.ErrorNoRecordFound) {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
 			return
 		}
@@ -115,23 +113,18 @@ func (server *Server) LoginUser(ctx *gin.Context) {
 		return
 	}
 
-	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.AccessTokenDuration)
+	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.AccessTokenDuration)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
-	refreshToken, RefreshTokenPayload, err := server.tokenMaker.CreateToken(user.Username, server.config.RefreshTokenDuration)
+	refreshToken, RefreshTokenPayload, err := server.tokenMaker.CreateToken(user.Username, user.Role, server.config.RefreshTokenDuration)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
-
-	/* stopped here :TODO
-	- Create a session in the database
-	- Return the access token and the refresh token to the client
-	*/
 
 	sessionArg := db.CreateSessionParams{
 		ID:           RefreshTokenPayload.ID,
@@ -140,7 +133,10 @@ func (server *Server) LoginUser(ctx *gin.Context) {
 		UserAgent:    ctx.Request.UserAgent(),
 		ClientIp:     ctx.ClientIP(),
 		IsBlocked:    false,
-		ExpiresAt:    RefreshTokenPayload.ExpiresAt,
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  RefreshTokenPayload.ExpiresAt,
+			Valid: false,
+		},
 	}
 
 	session, err := server.store.CreateSession(ctx, sessionArg)
@@ -155,7 +151,7 @@ func (server *Server) LoginUser(ctx *gin.Context) {
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  accessTokenPayload.ExpiresAt,
 		RefreshToken:          refreshToken,
-		RefreshTokenExpiresAt: session.ExpiresAt,
+		RefreshTokenExpiresAt: session.ExpiresAt.Time,
 		User:                  getUserObj(user),
 	})
 }
